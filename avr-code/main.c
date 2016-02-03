@@ -15,7 +15,7 @@
 #define TWI_SLAVE_ADRESS (0x15)
 
 //global m
-uint8_t twi_slave_device_memory[TWI_SLAVE_DEVICE_MEMORY_SIZE];
+uint8_t mem[TWI_SLAVE_DEVICE_MEMORY_SIZE];
 
 ISR( INT1_vect )
 {
@@ -80,6 +80,53 @@ void AKM_conf_clock( const uint8_t clock)
 
 }
 
+void AKM_conf_volume_out(const uint8_t channels, const uint8_t volume )
+{
+	uint8_t data[2];
+		data[1] = volume;
+		if (channels&(1<<0))
+		{
+			data[0] = AKM_LAtt_Adr;
+			aardvark_select_write(AKM1,data,2);
+		}
+		if (channels&(1<<1))
+		{
+			data[0] = AKM_RAtt_Adr;
+			aardvark_select_write(AKM1,data,2);
+		}
+		if (channels&(1<<2))
+		{
+			data[0] = AKM_LAtt_Adr;
+			aardvark_select_write(AKM2,data,2);
+		}
+		if (channels&(1<<3))
+		{
+			data[0] = AKM_RAtt_Adr;
+			aardvark_select_write(AKM2,data,2);
+		}
+		if (channels&(1<<4))
+		{
+			data[0] = AKM_LAtt_Adr;
+			aardvark_select_write(AKM3,data,2);
+		}
+		if (channels&(1<<5))
+		{
+			data[0] = AKM_RAtt_Adr;
+			aardvark_select_write(AKM3,data,2);
+		}
+		if (channels&(1<<6))
+		{
+			data[0] = AKM_LAtt_Adr;
+			aardvark_select_write(AKM4,data,2);
+		}
+		if (channels&(1<<7))
+		{
+			data[0] = AKM_RAtt_Adr;
+			aardvark_select_write(AKM4,data,2);
+		}
+}
+
+
 // TODO: zkontrolovat, jak sedí levý a pravý kanál
 void AKM_conf_volume_in(const uint8_t channels, const uint8_t volume )
 {
@@ -127,50 +174,73 @@ void AKM_conf_volume_in(const uint8_t channels, const uint8_t volume )
 	}
 }
 
-void AKM_conf_volume_out(const uint8_t channels, const uint8_t volume )
+
+// TODO: zkontrolovat, jak sedí levý a pravý kanál
+void sw4052_595_input_gain(const uint8_t channels, const uint8_t volume )
 {
-	uint8_t data[2];
-		data[1] = volume;
-		if (channels&(1<<0))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM1,data,2);
-		}
-		if (channels&(1<<1))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM1,data,2);
-		}
-		if (channels&(1<<2))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM2,data,2);
-		}
-		if (channels&(1<<3))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM2,data,2);
-		}
-		if (channels&(1<<4))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM3,data,2);
-		}
-		if (channels&(1<<5))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM3,data,2);
-		}
-		if (channels&(1<<6))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM4,data,2);
-		}
-		if (channels&(1<<7))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM4,data,2);
-		}
+	static uint8_t registers[4];
+
+	/*uint8_t data[2];
+	data[1] = volume;
+	if (channels&(1<<0))
+	{
+	}
+	if (channels&(1<<1))
+	{
+	}
+	if (channels&(1<<2))
+	{
+	}
+	if (channels&(1<<3))
+	{
+	}
+	if (channels&(1<<4))
+	{
+	}
+	if (channels&(1<<5))
+	{
+	}
+	if (channels&(1<<6))
+	{
+	}
+	if (channels&(1<<7))
+	{
+	}*/
+
+}
+
+// TODO: zkontrolovat, jak sedí levý a pravý kanál
+void cs3310_atenuator(const uint8_t channels, const uint8_t volume )
+{
+	static uint8_t registers[4];
+
+	/*uint8_t data[2];
+	data[1] = volume;
+	if (channels&(1<<0))
+	{
+	}
+	if (channels&(1<<1))
+	{
+	}
+	if (channels&(1<<2))
+	{
+	}
+	if (channels&(1<<3))
+	{
+	}
+	if (channels&(1<<4))
+	{
+	}
+	if (channels&(1<<5))
+	{
+	}
+	if (channels&(1<<6))
+	{
+	}
+	if (channels&(1<<7))
+	{
+	}
+	*/
 }
 
 
@@ -228,7 +298,13 @@ void CS8427_conf_clock(const uint8_t clock)
 	aardvark_select_write(CS8427,data,3);
 }
 
-uint8_t I2Cflag = 0;
+
+
+// todo: external interrupt from cs8427
+// todo: ètení z cs8427
+// todo: uart line noise - terminal server - putty like
+// todo: command parser, lightweight scanf
+
 
 int main (void)
 {
@@ -246,9 +322,9 @@ int main (void)
 	LCD_data(0);
 	LCD_str("   Ahoj, tady Aardvark!");
 
-	twi_slave_device_init( TWI_SLAVE_ADRESS, twi_slave_device_memory, TWI_SLAVE_DEVICE_MEMORY_SIZE);
+	twi_slave_device_init( TWI_SLAVE_ADRESS, mem, TWI_SLAVE_DEVICE_MEMORY_SIZE);
 
-	while(1)
+	/*while(1)
 	{
 		switch ( I2Cflag)
 		{
@@ -260,7 +336,7 @@ int main (void)
 		default:
 			break;
 		}
-	};
+	};*/
 
 
 	// chipselects high
@@ -310,37 +386,21 @@ int main (void)
 	DDRB |= (1<<1);
 	PORTB |= (1<<1);
 
-	//twi_slave_device_init( TWI_SLAVE_ADRESS, twi_slave_device_memory, TWI_SLAVE_DEVICE_MEMORY_SIZE);
+	//twi_slave_device_init( TWI_SLAVE_ADRESS, mem, TWI_SLAVE_DEVICE_MEMORY_SIZE);
 
 	while(1)
 	{
-		// tady provedeme výpis
-		if (I2Cflag)
-		{
-			UART_tx_s("TWI event callback flag!\r\n");
-			I2Cflag = 0;
-		}
 		//PORTB ^= (1<<1);
 	}
 	return 0;
 }
 
-// todo: external interrupt from cs8427
-// todo: ètení z cs8427
-
-// todo: uart line noise - terminal server - putty like
-// todo: command parser, lightweight scanf
 
 void twi_slave_write_callback(const uint8_t index, const uint8_t len)
 {
-	I2Cflag = 1;
-	LCD_goto(1,0);
-	LCD_str("adresa:");
-	LCD_data(index|0x30);
-	LCD_str(" delka:");
-	LCD_data(len|0x30);
-
 	uint8_t i, last_index;
+
+	//UART_tx_s("TWI event callback flag!\r\n");
 
 	if (len == 0)
 	{
@@ -351,9 +411,42 @@ void twi_slave_write_callback(const uint8_t index, const uint8_t len)
 
 	for( i = index; i<last_index; i++ )
 	{
-		if(i>1)
+		if (i == 0)// conf register (0)
 		{
+			// hodiny
+			if (1)
+			{
 
+			}
+			else
+			{
+
+			}
+			// 2x hodiny
+
+			//
+			LCD_goto(1,0);
+			LCD_str("conf   ");
+		}
+		if(i>0)// gain registers (1-8)
+		{
+			LCD_goto(1,0);
+			//AKM_conf_volume_in((1<<(i-1)),mem[i]&0x3F);
+			//sw4052_595_input_gain((1<<(i-1)),mem[i]>>6);
+			LCD_str("gain   ");
+		}
+		if(i>8)// input volume registers (9-16)
+		{
+			LCD_goto(1,0);
+			//AKM_conf_volume_in((1<<(i-9)),mem[i]);
+			cs3310_atenuator((1<<(i-9)),mem[i]);
+			LCD_str("input  ");
+		}
+		if(i>16)// output volume registers (17-25)
+		{
+			LCD_goto(1,0);
+			//AKM_conf_volume_out((1<<(i-17)),mem[i]);
+			LCD_str("output ");
 		}
 	}
 }
