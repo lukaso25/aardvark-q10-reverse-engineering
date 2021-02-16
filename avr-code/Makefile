@@ -82,7 +82,7 @@ OBJDIR = .
 # List C source files here. (C dependencies are automatically generated.)
 
 
-SRC  = aardvark-spi.c uart.c twi_slave_device.c
+SRC  = aardvark-spi.c uart.c midi_control.c
 SRC += $(TARGET).c
 
 # List C++ source files here. (C dependencies are automatically generated.)
@@ -278,7 +278,7 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 AVRDUDE_PROGRAMMER = avr109 -b 9600
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
-AVRDUDE_PORT = com12    # programmer connected to serial device
+AVRDUDE_PORT = com6    # programmer connected to serial device
 #avrdude -p m8 -c avr109 -b 9600 -P COM1 -U Main.hex
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep

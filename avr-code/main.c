@@ -3,19 +3,26 @@
 #include <avr/interrupt.h>
 
 #include "uart.h"
-#include "4blcd.h"
-
 
 #include "aardvark-spi.h"
+#include "midi_control.h"
+
+// MIDI buffer
+uint8_t MIDI_CC_data[9] = {63,63,63,63,63,63,63,63,63};
+volatile uint16_t MIDI_CC_ch_update;
 
 
-#include "twi_slave_device.h"
+ISR( USART_RXC_vect)
+{
+	midi_control_process_byte(UDR);
+}
 
-#define TWI_SLAVE_DEVICE_MEMORY_SIZE		(1+8+8+8)
-#define TWI_SLAVE_ADRESS (0x15)
+void midi_control_event_callback( uint8_t controller, uint8_t value)
+{
+	MIDI_CC_data[controller] = value;
+	MIDI_CC_ch_update |= (1<<controller);
+}
 
-//global m
-uint8_t mem[TWI_SLAVE_DEVICE_MEMORY_SIZE];
 
 ISR( INT1_vect )
 {
@@ -299,45 +306,30 @@ void CS8427_conf_clock(const uint8_t clock)
 }
 
 
+/*
+	case 88200:
+		LL_GPIO_ResetOutputPin(CLK_48_GPIO_Port,CLK_48_Pin);
+		LL_GPIO_ResetOutputPin(CLK_x2_GPIO_Port,CLK_x2_Pin);
+		return fs;
+	case 44100:
+		LL_GPIO_ResetOutputPin(CLK_48_GPIO_Port,CLK_48_Pin);
+		LL_GPIO_SetOutputPin(CLK_x2_GPIO_Port,CLK_x2_Pin);
+		return fs;
+	case 96000:
+		LL_GPIO_SetOutputPin(CLK_48_GPIO_Port,CLK_48_Pin);
+		LL_GPIO_ResetOutputPin(CLK_x2_GPIO_Port,CLK_x2_Pin);
+		return fs;
+	case 48000:
+		LL_GPIO_SetOutputPin(CLK_48_GPIO_Port,CLK_48_Pin);
+		LL_GPIO_SetOutputPin(CLK_x2_GPIO_Port,CLK_x2_Pin);
+		return fs;
+ * */
 
-// todo: external interrupt from cs8427
-// todo: ètení z cs8427
-// todo: uart line noise - terminal server - putty like
-// todo: command parser, lightweight scanf
 
 
 int main (void)
 {
 	uint8_t data[5];
-
-
-	LCD_init();
-	cls();
-	LCD_goto(0,0);
-	LCD_defchar(0,(0x55));
-	//LCD_defchar(0,(0x55));
-	LCD_goto(0,0);
-	LCD_data(0);
-	LCD_data(0);
-	LCD_data(0);
-	LCD_str("   Ahoj, tady Aardvark!");
-
-	twi_slave_device_init( TWI_SLAVE_ADRESS, mem, TWI_SLAVE_DEVICE_MEMORY_SIZE);
-
-	/*while(1)
-	{
-		switch ( I2Cflag)
-		{
-		case 1:
-
-			break;
-
-		case 0:
-		default:
-			break;
-		}
-	};*/
-
 
 	// chipselects high
 	if (aardvark_spi_init() > 0)
@@ -345,8 +337,8 @@ int main (void)
 		while(1);
 	}
 
-	// test, zdali mùžeme pøipojit uart
-	UART_init(51);
+	UART_init(15); // 15 pro 31250
+	UART_rxint();
 	UART_tx_s("Ahoj, tady mod Aardvark!\r\n");
 
 	// Preamp 4052 gain
@@ -386,17 +378,21 @@ int main (void)
 	DDRB |= (1<<1);
 	PORTB |= (1<<1);
 
-	//twi_slave_device_init( TWI_SLAVE_ADRESS, mem, TWI_SLAVE_DEVICE_MEMORY_SIZE);
 
 	while(1)
 	{
 		//PORTB ^= (1<<1);
+		if (MIDI_CC_ch_update)
+		{
+			MIDI_CC_ch_update = 0;
+			UART_tx_s("MIDI CC received.\r\n");
+		}
 	}
 	return 0;
 }
 
 
-void twi_slave_write_callback(const uint8_t index, const uint8_t len)
+/*void twi_slave_write_callback(const uint8_t index, const uint8_t len)
 {
 	uint8_t i, last_index;
 
@@ -449,5 +445,5 @@ void twi_slave_write_callback(const uint8_t index, const uint8_t len)
 			LCD_str("output ");
 		}
 	}
-}
+}*/
 
