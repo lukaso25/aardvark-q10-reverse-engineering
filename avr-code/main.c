@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 
 #include "uart.h"
 
@@ -9,7 +10,7 @@
 
 // MIDI buffer
 uint8_t MIDI_CC_data[9] = {63,63,63,63,63,63,63,63,63};
-volatile uint16_t MIDI_CC_ch_update;
+volatile uint16_t MIDI_CC_ch_flags;
 
 
 ISR( USART_RXC_vect)
@@ -20,7 +21,7 @@ ISR( USART_RXC_vect)
 void midi_control_event_callback( uint8_t controller, uint8_t value)
 {
 	MIDI_CC_data[controller] = value;
-	MIDI_CC_ch_update |= (1<<controller);
+	MIDI_CC_ch_flags |= (1<<controller);
 }
 
 
@@ -36,31 +37,36 @@ void aardvark_select_write( const uint8_t chip, const uint8_t * data, const uint
 	aardvark_unselect_chip(chip);
 }
 
-
-//void AKM_init_format( mck, format );
-//void AKM_set_volume( chip, channel ,volume );
-
 enum { CLOCK_256fs = 0 , CLOCK_512fs } Masterclock_Divider;
 
-
-void AKM_conf_clock( const uint8_t clock)
+void AKM_reset( void)
 {
 	uint8_t data[2];
-	// AKM konfigurace
+
+	//reset
+	data[0] = AKM_ResetControl_Adr;
+	data[1] = 0;
+	aardvark_select_write(AKM1,data,2);
+	aardvark_select_write(AKM2,data,2);
+	aardvark_select_write(AKM3,data,2);
+	aardvark_select_write(AKM4,data,2);
+}
+
+void AKM_init( const uint8_t clock, const uint8_t speed)
+{
+	uint8_t data[2];
 
 	// format selection - MODE2: 2x 24bit LJ
 	data[1] = AKM_DIF1;
 
-	// master clock selection
-	switch (clock)
+	if (clock == CLOCK_512fs)
 	{
-	case CLOCK_256fs:
-		data[1] |= 0;
-		break;
-	case CLOCK_512fs:
-	default:
 		data[1] |= AKM_CKS0;
-		break;
+	}
+
+	if (speed != 0)
+	{
+		data[1] |= AKM_DFS0;
 	}
 
 	data[0] = AKM_ClockAndFormat_Adr;
@@ -69,14 +75,6 @@ void AKM_conf_clock( const uint8_t clock)
 	aardvark_select_write(AKM3,data,2);
 	aardvark_select_write(AKM4,data,2);
 
-	//power
-	/*data[0] = AKM_PowerDownReg_Adr;
-	data[1] = 0;
-	aardvark_select_write(AKM1,data,2);
-	aardvark_select_write(AKM2,data,2);
-	aardvark_select_write(AKM3,data,2);
-	aardvark_select_write(AKM4,data,2);*/
-
 	//reset
 	data[0] = AKM_ResetControl_Adr;
 	data[1] = AKM_RSTDA | AKM_RSTAD;
@@ -84,57 +82,55 @@ void AKM_conf_clock( const uint8_t clock)
 	aardvark_select_write(AKM2,data,2);
 	aardvark_select_write(AKM3,data,2);
 	aardvark_select_write(AKM4,data,2);
-
 }
 
 void AKM_conf_volume_out(const uint8_t channels, const uint8_t volume )
 {
 	uint8_t data[2];
-		data[1] = volume;
-		if (channels&(1<<0))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM1,data,2);
-		}
-		if (channels&(1<<1))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM1,data,2);
-		}
-		if (channels&(1<<2))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM2,data,2);
-		}
-		if (channels&(1<<3))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM2,data,2);
-		}
-		if (channels&(1<<4))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM3,data,2);
-		}
-		if (channels&(1<<5))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM3,data,2);
-		}
-		if (channels&(1<<6))
-		{
-			data[0] = AKM_LAtt_Adr;
-			aardvark_select_write(AKM4,data,2);
-		}
-		if (channels&(1<<7))
-		{
-			data[0] = AKM_RAtt_Adr;
-			aardvark_select_write(AKM4,data,2);
-		}
+	data[1] = volume;
+	if (channels&(1<<0))
+	{
+		data[0] = AKM_LAtt_Adr;
+		aardvark_select_write(AKM1,data,2);
+	}
+	if (channels&(1<<1))
+	{
+		data[0] = AKM_RAtt_Adr;
+		aardvark_select_write(AKM1,data,2);
+	}
+	if (channels&(1<<2))
+	{
+		data[0] = AKM_LAtt_Adr;
+		aardvark_select_write(AKM2,data,2);
+	}
+	if (channels&(1<<3))
+	{
+		data[0] = AKM_RAtt_Adr;
+		aardvark_select_write(AKM2,data,2);
+	}
+	if (channels&(1<<4))
+	{
+		data[0] = AKM_LAtt_Adr;
+		aardvark_select_write(AKM3,data,2);
+	}
+	if (channels&(1<<5))
+	{
+		data[0] = AKM_RAtt_Adr;
+		aardvark_select_write(AKM3,data,2);
+	}
+	if (channels&(1<<6))
+	{
+		data[0] = AKM_LAtt_Adr;
+		aardvark_select_write(AKM4,data,2);
+	}
+	if (channels&(1<<7))
+	{
+		data[0] = AKM_RAtt_Adr;
+		aardvark_select_write(AKM4,data,2);
+	}
 }
 
 
-// TODO: zkontrolovat, jak sedí levý a pravý kanál
 void AKM_conf_volume_in(const uint8_t channels, const uint8_t volume )
 {
 	uint8_t data[2];
@@ -181,75 +177,50 @@ void AKM_conf_volume_in(const uint8_t channels, const uint8_t volume )
 	}
 }
 
-
-// TODO: zkontrolovat, jak sedí levý a pravý kanál
-void sw4052_595_input_gain(const uint8_t channels, const uint8_t volume )
+void input_gain_595(const uint8_t channel, const uint8_t gain_bits )
 {
-	static uint8_t registers[4];
-
-	/*uint8_t data[2];
-	data[1] = volume;
-	if (channels&(1<<0))
+	static uint8_t regs_595[2] = {0};
+	uint8_t rot = ((channel&0b11)<<1);
+	if(channel&0b100)
 	{
+		regs_595[0] &= ~(0b11<<rot);
+		regs_595[0] |= (gain_bits&0b11)<<rot;
 	}
-	if (channels&(1<<1))
+	else
 	{
+		regs_595[1] &= ~(0b11<<rot);
+		regs_595[1] |= (gain_bits&0b11)<<rot;
 	}
-	if (channels&(1<<2))
-	{
-	}
-	if (channels&(1<<3))
-	{
-	}
-	if (channels&(1<<4))
-	{
-	}
-	if (channels&(1<<5))
-	{
-	}
-	if (channels&(1<<6))
-	{
-	}
-	if (channels&(1<<7))
-	{
-	}*/
-
+	aardvark_select_write(GAIN595,regs_595,2);
 }
 
-// TODO: zkontrolovat, jak sedí levý a pravý kanál
-void cs3310_atenuator(const uint8_t channels, const uint8_t volume )
-{
-	static uint8_t registers[4];
 
-	/*uint8_t data[2];
-	data[1] = volume;
-	if (channels&(1<<0))
-	{
-	}
-	if (channels&(1<<1))
-	{
-	}
-	if (channels&(1<<2))
-	{
-	}
-	if (channels&(1<<3))
-	{
-	}
-	if (channels&(1<<4))
-	{
-	}
-	if (channels&(1<<5))
-	{
-	}
-	if (channels&(1<<6))
-	{
-	}
-	if (channels&(1<<7))
-	{
-	}
-	*/
+void cs3310_gain(const uint8_t channel, const uint8_t gain )
+{
+	static uint8_t reg_cs3310[8] = {0};
+	reg_cs3310[channel] = gain;
+	aardvark_select_write( VOL1 + (channel >> 1), &reg_cs3310[channel&0xFE], 2);
 }
 
+void input_gain_set_total( uint8_t channel, uint8_t index)
+{
+	if (index <= 40)
+	{
+		input_gain_595(channel, 0);
+		cs3310_gain(channel, index+176);
+	} else if (index <= 80)
+	{
+		input_gain_595(channel, 1);
+		cs3310_gain(channel, index+176-40);
+	} else
+	{
+		input_gain_595(channel, 2);
+		cs3310_gain(channel, index+176-80);
+	}
+}
+
+
+//void CS8427_conf_clock(const uint8_t clock)
 
 void CS8427_conf_clock(const uint8_t clock)
 {
@@ -331,7 +302,6 @@ int main (void)
 {
 	uint8_t data[5];
 
-	// chipselects high
 	if (aardvark_spi_init() > 0)
 	{
 		while(1);
@@ -341,10 +311,6 @@ int main (void)
 	UART_rxint();
 	UART_tx_s("Ahoj, tady mod Aardvark!\r\n");
 
-	// Preamp 4052 gain
-	data[0] = 0b11111111;
-	data[1] = 0b11111111;
-	aardvark_select_write(GAIN595,data,2);
 
 	// Preamp 3310 volume ~ 0 dB
 	data[0] = 0b11000000;
@@ -363,30 +329,58 @@ int main (void)
 
 
 	//CS8427_conf_clock( CLOCK_256fs);
-	//AKM_conf_clock( CLOCK_256fs);
+	//AKM_init( CLOCK_256fs);
 	//UART_tx_s("Divider 256fs.\r\n");
 
 	CS8427_conf_clock( CLOCK_512fs);
-	AKM_conf_clock( CLOCK_512fs);
+	AKM_init( CLOCK_512fs, 0);
 	UART_tx_s("Divider 512fs.\r\n");
 
-	AKM_conf_volume_out(0xFF, 127);
+	// select input attenuator 0dB
 	AKM_conf_volume_in(0xFF, 127);
-
 
 	//LED on
 	DDRB |= (1<<1);
 	PORTB |= (1<<1);
 
+	MIDI_CC_ch_flags = 0x1FF;
 
 	while(1)
 	{
-		//PORTB ^= (1<<1);
-		if (MIDI_CC_ch_update)
+		if (MIDI_CC_ch_flags)
 		{
-			MIDI_CC_ch_update = 0;
-			UART_tx_s("MIDI CC received.\r\n");
+			uint8_t idx;
+			uint16_t mask = 1;
+
+			// input channels gain
+			for ( idx = 0; idx<8; idx++)
+			{
+				if( MIDI_CC_ch_flags & mask)
+				{
+					input_gain_595(idx,MIDI_CC_data[idx]>>5);
+					UART_tx_s("GAIN595 update ch. 0x");
+					UART_hex8(idx);
+					UART_tx_s(" value 0x");
+					UART_hex8(MIDI_CC_data[idx]>>5);
+					UART_tx_s("\r\n");
+					MIDI_CC_ch_flags &= ~mask;
+				}
+				mask <<= 1;
+			}
+
+			// LAST is DAC volume
+			if( MIDI_CC_ch_flags & mask)
+			{
+				AKM_conf_volume_out(0xFF,MIDI_CC_data[8]);
+				UART_tx_s("DAC volume update 0x");
+				UART_hex8(MIDI_CC_data[8]);
+				UART_tx_s("\r\n");
+				MIDI_CC_ch_flags &= ~mask;
+			}
 		}
+		// go to sleep
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_mode();
 	}
 	return 0;
 }

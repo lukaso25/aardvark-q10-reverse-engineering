@@ -29,22 +29,25 @@
 #endif
 
 
-//!inicialization of module
-void UART_init( uint8_t baudc);
-//!function enable rx interrupt
-void UART_rxint( void);
-//!function disable rx interrupt
-void UART_rxint_dis( void);
+//! inicialization of module
+extern void UART_init( uint8_t baudc);
 
-//!function send 1byte
-void UART_tx( uint8_t data);
+//! function enable rx interrupt
+extern void UART_rxint( void);
 
-//!function waiting for 1byte data
-uint8_t UART_rx( void);
+//! function disable rx interrupt
+extern void UART_rxint_dis( void);
 
-//!fuction sent string from ram
-void UART_tx_s( char *text);
+//! function send 1byte
+extern void UART_tx( uint8_t data);
 
-void UART_tx_int( uint8_t num);
+//! function waiting for 1byte data
+extern uint8_t UART_rx( void);
+
+//! fuction sent string from ram
+extern void UART_tx_s( char *text);
+
+extern void UART_hex8( uint8_t num );
+
 
 #endif //__UART_H__

@@ -52,7 +52,11 @@ void UART_tx_s( char *text )
 		UDR = *(text++);
 	}
 }
-void UART_tx_int( uint8_t num)
-{
 
+void UART_hex8( uint8_t num )
+{
+	uint8_t digit = (num>>4);
+	UART_tx(digit>9?(digit+87):(digit+'0'));
+	digit = num&0x0F;
+	UART_tx(digit>9?(digit+87):(digit+'0'));
 }

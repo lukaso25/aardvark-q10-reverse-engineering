@@ -30,12 +30,15 @@ enum {
 	AKM_LAtt_Adr = 6|0b10100000,
 	AKM_RAtt_Adr = 7|0b10100000
 } AKM4524_Registers;
+
 enum {
 	AKM_PWVR = (1<<2), AKM_PWAD = (1<<1), AKM_PWDA = (1<<0)
 } AKM_PowerDownReg;
+
 enum {
 	AKM_RSTAD = (1<<1), AKM_RSTDA = (1<<0)
 } AKM_ResetControl;
+
 enum {
 	AKM_DIF2 = (1<<7),
 	AKM_DIF1 = (1<<6),
@@ -46,6 +49,7 @@ enum {
 	AKM_DFS1 = (1<<1),
 	AKM_DFS0 = (1<<0)
 } AKM_ClockAndFormat;
+
 enum {
 	AKM_SMUTE = (1<<7),
 	AKM_ZCEI = (1<<4),
@@ -78,13 +82,13 @@ enum {
 
 
 /*! Initialization function */
-uint8_t aardvark_spi_init( void);
+extern uint8_t aardvark_spi_init( void);
 
 
-void aardvark_select_chip(uint8_t cs);
-void aardvark_unselect_chip(uint8_t cs);
-void aardvark_spi_write(const uint8_t * data, const uint8_t n);
-uint8_t aardvark_spi_read(uint8_t * data, uint8_t * n);
+extern void aardvark_select_chip(uint8_t cs);
+extern void aardvark_unselect_chip(uint8_t cs);
+extern void aardvark_spi_write(const uint8_t * data, const uint8_t n);
+extern uint8_t aardvark_spi_read(uint8_t * data, uint8_t * n);
 
 
 /*! @}*/
